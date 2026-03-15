@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+grammarly-plugin/main.js
+grammarly-plugin/*.js.map
+*.js.map
+
+# Development/test scripts
+grammarly-plugin/test-grammarly.js
+
+# AI tool configuration
+CLAUDE.md
+.claude/
+.aider*
+.cursor/
+.copilot/
+.github/copilot-instructions.md
+
+# Environment files with secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
+*~
+Thumbs.db
+
+# Research and reference directories (not part of the plugin release)
+grammarly-api/
+grammarly-vscode/
+obsidian-orthography/
+Obsidian-plugin-instructions/
+Grammarly-API-docs/
+Antigravity-Docs/
+vibe-coded/
+vibe-coding-best-practices/
+Submit- Windows Store/
+Submitting - App Store - Apple Developer/
+
+# Miscellaneous research docs at root
+grammarly_obsidian_prompts.md
+stewartmcgown-unofficial-api-client-readme-file.md
+Obsidian-Orthography-READ.me.md

@@ -1,0 +1,132 @@
+/* ── Squiggles ────────────────────────────────────────────────────────────── */
+/* Wavy underline — visually distinct from Obsidian's dotted spell-check red  */
+
+.grammarly-error {
+	text-decoration: underline wavy #e67e22;
+	text-decoration-skip-ink: none;
+}
+.grammarly-error.grammarly-critical      { text-decoration-color: #df4b4b; }
+.grammarly-error.grammarly-informational { text-decoration-color: #1abc9c; }
+.grammarly-error.grammarly-advanced      { text-decoration-color: #9b59b6; }
+.grammarly-error.grammarly-mild          { text-decoration-color: #8e44ad; }
+
+/* ── Tooltip card ─────────────────────────────────────────────────────────── */
+/* position/z-index are set inline by JS so the card can be appended to       */
+/* document.body and stay visible while the mouse travels from text to card.  */
+
+.grammarly-tooltip {
+	--g-accent: #1abc9c;
+	background: var(--background-primary);
+	border: 1.5px solid var(--g-accent);
+	border-radius: 8px;
+	padding: 12px 14px 10px;
+	box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+	max-width: 340px;
+	min-width: 220px;
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+}
+
+/* ── Category badge ───────────────────────────────────────────────────────── */
+
+.grammarly-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+.grammarly-badge-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.grammarly-badge-label {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/* ── Diff block ───────────────────────────────────────────────────────────── */
+
+.grammarly-diff {
+	margin-bottom: 8px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	line-height: 1.6;
+}
+.grammarly-diff-context  { color: var(--text-muted); }
+.grammarly-diff-ellipsis { color: var(--text-faint); }
+.grammarly-diff-original {
+	color: #df4b4b;
+	text-decoration: line-through;
+	text-decoration-color: #df4b4b;
+}
+.grammarly-diff-arrow {
+	color: var(--text-faint);
+	font-size: 10px;
+}
+.grammarly-diff-replacement {
+	color: #1abc9c;
+	font-style: italic;
+	font-weight: 600;
+}
+
+/* ── Explanation text ─────────────────────────────────────────────────────── */
+
+.grammarly-explanation {
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+/* ── Action buttons ───────────────────────────────────────────────────────── */
+
+.grammarly-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.grammarly-btn-accept {
+	background: var(--g-accent);
+	color: #fff;
+	border: none;
+	border-radius: 5px;
+	padding: 5px 12px;
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+	cursor: pointer;
+	transition: filter 0.1s;
+}
+.grammarly-btn-accept:hover { filter: brightness(1.12); }
+
+.grammarly-btn-alt {
+	background: transparent;
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	padding: 4px 10px;
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+.grammarly-btn-alt:hover { background: var(--background-modifier-hover); }
+
+.grammarly-btn-dismiss {
+	background: transparent;
+	color: var(--text-muted);
+	border: none;
+	padding: 4px 6px;
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+	margin-left: auto;
+}
+.grammarly-btn-dismiss:hover { color: var(--text-normal); }
