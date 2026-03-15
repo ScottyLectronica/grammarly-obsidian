@@ -35,7 +35,7 @@ interface CMChangeSet {
 }
 
 export class GrammarlyClient extends Events {
-	private ws: any;
+	private ws: any = null;
 	private messageId = 0;
 	private grauth: string;
 	private csrfToken: string;
