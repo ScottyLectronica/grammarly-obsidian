@@ -300,7 +300,7 @@ export default class GrammarlyPlugin extends Plugin {
 				if (editor.cm) {
 					const plugin = editor.cm.plugin(grammarlyViewPlugin);
 					if (plugin) {
-						plugin.setAlerts(alerts);
+						plugin.setAlerts(alerts, editor.cm.state.doc.length);
 						editor.cm.requestMeasure();
 					}
 				}
