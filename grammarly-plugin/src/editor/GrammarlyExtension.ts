@@ -17,9 +17,9 @@ class GrammarlyPluginValue {
         }
     }
 
-    setAlerts(newAlerts: GrammarlyAlert[]) {
+    setAlerts(newAlerts: GrammarlyAlert[], docLen?: number) {
         this.alerts = newAlerts;
-        this.buildDecorations();
+        this.buildDecorations(docLen);
     }
 
     clearAlerts() {
@@ -27,7 +27,7 @@ class GrammarlyPluginValue {
         this.decorations = Decoration.none;
     }
 
-    private buildDecorations() {
+    private buildDecorations(docLen?: number) {
         const builder = new RangeSetBuilder<Decoration>();
 
         // Sort alerts by begin index as required by RangeSetBuilder
@@ -39,8 +39,9 @@ class GrammarlyPluginValue {
                 end = begin + 1; // Fix zero-length ranges
             }
 
-            // Ensure ranges are valid before building
-            if (begin >= 0) {
+            // Ensure the range is within the current document bounds
+            if (docLen !== undefined && end > docLen) continue;
+            if (begin >= 0 && end > begin) {
                 builder.add(
                     begin,
                     end,

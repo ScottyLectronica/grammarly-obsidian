@@ -34,6 +34,39 @@ interface CMChangeSet {
 	compose(other: CMChangeSet): CMChangeSet;
 }
 
+/**
+ * Returns the character length of the YAML frontmatter block at the start of
+ * `text` (including both delimiter lines and their newlines), or 0 if there is
+ * no frontmatter.
+ *
+ * Grammarly's server strips frontmatter before analysing, so alert positions
+ * are relative to the post-frontmatter text.  We track this offset and use it
+ * to (a) send only the body to Grammarly and (b) translate alert positions back
+ * to CM6 document coordinates before the decorations are painted.
+ */
+function detectFrontmatterLength(text: string): number {
+	if (!text.startsWith('---')) return 0;
+	const firstNewline = text.indexOf('\n');
+	if (firstNewline === -1) return 0;
+	// Opening line must be exactly "---"
+	if (text.slice(0, firstNewline).replace(/\r$/, '') !== '---') return 0;
+
+	let pos = firstNewline + 1;
+	while (pos < text.length) {
+		const nextNewline = text.indexOf('\n', pos);
+		const lineEnd     = nextNewline === -1 ? text.length : nextNewline;
+		const line        = text.slice(pos, lineEnd).replace(/\r$/, '');
+
+		if (line === '---' || line === '...') {
+			// Include the closing delimiter line (and its newline if present)
+			return nextNewline === -1 ? text.length : nextNewline + 1;
+		}
+		if (nextNewline === -1) return 0; // unclosed frontmatter — treat as absent
+		pos = nextNewline + 1;
+	}
+	return 0;
+}
+
 export class GrammarlyClient extends Events {
 	private ws: any = null;
 	private messageId = 0;
@@ -53,6 +86,18 @@ export class GrammarlyClient extends Events {
 	private pendingChanges: CMChangeSet | null = null;
 	private pendingDocLen = 0;
 	private pendingDocText = '';
+
+	/**
+	 * Length (in characters) of the YAML frontmatter in the current document.
+	 *
+	 * Grammarly receives only the body text (text after the frontmatter), so all
+	 * positions it returns are relative to the body.  We add this offset when
+	 * emitting alerts so that CM6 receives correct document positions.
+	 *
+	 * NOTE: not reset on reconnect — the frontmatter belongs to the document,
+	 * not to the connection.
+	 */
+	private frontmatterOffset = 0;
 
 	private readonly debouncedFlush = debounce(() => this.flush(), 400, false);
 
@@ -89,6 +134,7 @@ export class GrammarlyClient extends Events {
 				this.inflightDocLen = 0;
 				this.pendingChanges = null;
 				this.messageId = 0;
+				// frontmatterOffset intentionally NOT reset — it belongs to the doc.
 
 				const cookieStr =
 					`gnar_containerId=${this.grauth.substring(0, 10)}; ` +
@@ -173,12 +219,15 @@ export class GrammarlyClient extends Events {
 		}
 	}
 
+	/**
+	 * Called on every keystroke.  `changes` is in CM6 coordinate space (full
+	 * document including frontmatter); `newText` is the full document text.
+	 */
 	public onDocChanged(changes: CMChangeSet, oldDocLen: number, newText: string): void {
-		this.pendingDocText = newText;
-		this.pendingDocLen = newText.length;
+		const body = newText.slice(this.frontmatterOffset);
+		this.pendingDocText = body;
+		this.pendingDocLen  = body.length;
 
-		// Compose with any already-pending changes so we have a single net delta
-		// relative to the last server-confirmed baseline.
 		this.pendingChanges =
 			this.pendingChanges === null
 				? changes
@@ -187,10 +236,17 @@ export class GrammarlyClient extends Events {
 		this.debouncedFlush();
 	}
 
+	/**
+	 * Call once when a note is first activated.  Strips frontmatter, stores the
+	 * offset, and queues a full-document bootstrap send.
+	 */
 	public submitInitialText(text: string): void {
+		this.frontmatterOffset = detectFrontmatterLength(text);
+		const body = text.slice(this.frontmatterOffset);
+
 		this.pendingChanges = null;
-		this.pendingDocText = text;
-		this.pendingDocLen = text.length;
+		this.pendingDocText = body;
+		this.pendingDocLen  = body.length;
 		this.debouncedFlush();
 	}
 
@@ -215,13 +271,14 @@ export class GrammarlyClient extends Events {
 		let isBootstrap = false;
 
 		if (this.serverDocLen === 0 && this.pendingDocText.length > 0) {
-			ops = [{ insert: this.pendingDocText }];
-			newDocLen = this.pendingDocText.length;
+			// Bootstrap: send the full body as a single insert
+			ops        = [{ insert: this.pendingDocText }];
+			newDocLen  = this.pendingDocText.length;
 			this.pendingChanges = null;
 			isBootstrap = true;
 
 		} else if (this.pendingChanges !== null) {
-			ops = this.changeSetToOTOps(this.pendingChanges, this.serverDocLen);
+			ops       = this.changeSetToOTOps(this.pendingChanges, this.serverDocLen);
 			newDocLen = this.pendingDocLen;
 			this.pendingChanges = null;
 
@@ -234,38 +291,54 @@ export class GrammarlyClient extends Events {
 		}
 
 		const otMsg = {
-			id: this.messageId++,
-			action: 'submit_ot',
-			rev: this.serverRev,
+			id:      this.messageId++,
+			action:  'submit_ot',
+			rev:     this.serverRev,
 			doc_len: this.serverDocLen,
-			deltas: [{ ops }],
+			deltas:  [{ ops }],
 			chunked: false
 		};
 		this.ws.send(JSON.stringify(otMsg));
 
-		this.inflightDocLen = newDocLen;
-		this.waitingForAck = true;
+		this.inflightDocLen  = newDocLen;
+		this.waitingForAck   = true;
 	}
 
+	/**
+	 * Converts a CM6 ChangeSet to Grammarly OT ops.
+	 *
+	 * `changes` positions are in CM6 space (full document including frontmatter).
+	 * `oldDocLen` is in Grammarly space (body only = serverDocLen).
+	 * We subtract `frontmatterOffset` from every position and skip changes that
+	 * fall entirely within the frontmatter.
+	 */
 	private changeSetToOTOps(changes: CMChangeSet, oldDocLen: number): any[] {
 		const ops: any[] = [];
-		let cursor = 0; // tracks position in the OLD document
+		const fo = this.frontmatterOffset;
+		let cursor = 0; // position in Grammarly's coordinate space
 
 		changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-			if (fromA > cursor) {
-				ops.push({ retain: fromA - cursor });
+			// Skip changes entirely inside the frontmatter
+			if (toA <= fo) return;
+
+			// Convert from CM6 space → Grammarly space
+			const gFromA = Math.max(0, fromA - fo);
+			const gToA   = toA - fo; // toA > fo guaranteed by the guard above
+
+			if (gFromA > cursor) {
+				ops.push({ retain: gFromA - cursor });
 			}
-			if (toA > fromA) {
-				ops.push({ delete: toA - fromA });
+			if (gToA > gFromA) {
+				ops.push({ delete: gToA - gFromA });
 			}
 			const text = inserted.toString();
 			if (text.length > 0) {
 				ops.push({ insert: text });
 			}
-			cursor = toA;
+			cursor = gToA;
 		});
 
-		// Retain any trailing unchanged text to satisfy doc_len
+		// oldDocLen is already in Grammarly space (serverDocLen = body length)
 		if (cursor < oldDocLen) {
 			ops.push({ retain: oldDocLen - cursor });
 		}
@@ -284,23 +357,23 @@ export class GrammarlyClient extends Events {
 				break;
 
 			case 'submit_ot':
-				this.serverRev = msg.rev;
+				this.serverRev    = msg.rev;
 				this.serverDocLen = this.inflightDocLen;
 				this.waitingForAck = false;
 
 				if (!this.contextSent) {
 					this.contextSent = true;
 					const ctxMsg = {
-						id: this.messageId++,
+						id:     this.messageId++,
 						action: 'set_context',
-						rev: this.serverRev,
+						rev:    this.serverRev,
 						documentContext: {
 							audience: 'knowledgeable',
-							dialect: 'american',
-							domain: 'general',
+							dialect:  'american',
+							domain:   'general',
 							emotions: [],
-							goals: [],
-							style: 'neutral'
+							goals:    [],
+							style:    'neutral'
 						}
 					};
 					this.ws?.send(JSON.stringify(ctxMsg));
@@ -312,9 +385,15 @@ export class GrammarlyClient extends Events {
 				}
 				break;
 
-			case 'alert':
-				this.trigger('alert', msg as GrammarlyAlert);
+			case 'alert': {
+				const alert = msg as GrammarlyAlert;
+				// Translate from Grammarly's body-relative coordinates back to
+				// CM6 document coordinates by adding the frontmatter offset.
+				alert.begin += this.frontmatterOffset;
+				alert.end   += this.frontmatterOffset;
+				this.trigger('alert', alert);
 				break;
+			}
 
 			case 'remove':
 				this.trigger('remove', msg.id);
