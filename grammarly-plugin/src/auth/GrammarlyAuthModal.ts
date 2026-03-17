@@ -21,6 +21,15 @@ export class GrammarlyAuthModal extends Modal {
 		this.modalEl.style.width = '800px';
 		this.modalEl.style.height = '600px';
 
+		// Clear any existing Grammarly session so the user always gets a fresh
+		// login screen — this lets them switch accounts without needing to
+		// manually sign out first.
+		try {
+			const remote = require('@electron/remote');
+			const ses = remote.session.fromPartition('persist:grammarly_session');
+			ses.clearStorageData({ storages: ['cookies'] }).catch(() => {/* ignore */});
+		} catch { /* ignore — webview will still open */ }
+
 		const webview = contentEl.createEl('webview' as any, {
 			attr: {
 				src: 'https://www.grammarly.com/signin',

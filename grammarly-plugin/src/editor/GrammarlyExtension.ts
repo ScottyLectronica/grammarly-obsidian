@@ -12,7 +12,7 @@ class GrammarlyPluginValue {
 
     update(update: ViewUpdate) {
         if (update.docChanged) {
-            // Map decorations as the user types
+            // Map decorations as the user types — this is the authoritative position source
             this.decorations = this.decorations.map(update.changes);
         }
     }
@@ -27,6 +27,23 @@ class GrammarlyPluginValue {
         this.decorations = Decoration.none;
     }
 
+    /**
+     * Returns the CURRENT [from, to] document positions for the given alert ID
+     * by reading directly from the maintained DecorationSet.
+     * This is always accurate because decorations.map(changes) is called on every
+     * document change, making this more reliable than posAtDOM.
+     */
+    getPosForAlert(alertId: number): [number, number] | null {
+        let result: [number, number] | null = null;
+        this.decorations.between(0, 1e9, (from, to, value) => {
+            if ((value.spec as any).attributes?.['data-alert-id'] === alertId.toString()) {
+                result = [from, to];
+                return false; // stop iteration
+            }
+        });
+        return result;
+    }
+
     private buildDecorations(docLen?: number) {
         const builder = new RangeSetBuilder<Decoration>();
 
@@ -35,8 +52,9 @@ class GrammarlyPluginValue {
 
         for (const alert of sortedAlerts) {
             let { begin, end } = alert;
-            if (begin >= end) {
-                end = begin + 1; // Fix zero-length ranges
+            const isInsertion = begin >= end;
+            if (isInsertion) {
+                end = begin + 1; // Extend zero-length ranges to make them visible
             }
 
             // Ensure the range is within the current document bounds
@@ -53,9 +71,12 @@ class GrammarlyPluginValue {
                             'data-explanation': alert.explanation || '',
                             'data-category': alert.category || '',
                             'data-impact': alert.impact || '',
-                            'data-replacements': JSON.stringify(alert.replacements),
-                            'data-begin': begin.toString(),
-                            'data-end': end.toString()
+                            'data-is-insertion': isInsertion.toString(),
+                            'data-replacements': JSON.stringify(
+                                Array.isArray(alert.replacements)
+                                    ? alert.replacements.filter((r: any) => typeof r === 'string')
+                                    : []
+                            )
                         }
                     })
                 );

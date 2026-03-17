@@ -1,5 +1,6 @@
 import { EditorView } from "@codemirror/view";
 import { Extension } from "@codemirror/state";
+import { grammarlyViewPlugin } from "./GrammarlyExtension";
 
 
 let onDismiss: ((alertId: number) => void) | null = null;
@@ -67,16 +68,36 @@ function buildAndShow(target: HTMLElement, view: EditorView) {
 	const explanationRaw = target.getAttribute('data-explanation')         || '';
 	const category       = target.getAttribute('data-category')            || '';
 	const impact         = target.getAttribute('data-impact')              || '';
-	const beginAttr      = target.getAttribute('data-begin');
-	const endAttr        = target.getAttribute('data-end');
 	const color          = categoryColor(category, impact);
 	const explanation    = stripHtml(explanationRaw);
+	const isInsertion    = target.getAttribute('data-is-insertion') === 'true';
 
 	let replacements: string[] = [];
-	try { replacements = JSON.parse(target.getAttribute('data-replacements') || '[]'); } catch { /* skip */ }
+	try {
+		const parsed = JSON.parse(target.getAttribute('data-replacements') || '[]');
+		if (Array.isArray(parsed)) replacements = parsed.filter((r): r is string => typeof r === 'string');
+	} catch { /* skip */ }
 
-	const begin = beginAttr !== null ? parseInt(beginAttr, 10) : null;
-	const end   = endAttr   !== null ? parseInt(endAttr,   10) : null;
+	/**
+	 * Get the current [from, to] document positions for this alert by reading
+	 * from the DecorationSet, which is always kept up-to-date via
+	 * decorations.map(update.changes) on every document change.
+	 */
+	function getLivePos(): [number, number] | null {
+		const plugin = view.plugin(grammarlyViewPlugin);
+		if (!plugin) return null;
+		const pos = plugin.getPosForAlert(alertId);
+		if (!pos) return null;
+		const [from, to] = pos;
+		// For insertions the decoration was extended by 1 char — don't delete that char
+		const effectiveTo = isInsertion ? from : to;
+		return [from, effectiveTo];
+	}
+
+	// Compute initial positions for diff display
+	const initialPos = getLivePos();
+	const begin = initialPos ? initialPos[0] : null;
+	const end   = initialPos ? initialPos[1] : null;
 
 	const dom = document.createElement('div');
 	dom.className = 'grammarly-tooltip';
@@ -93,8 +114,9 @@ function buildAndShow(target: HTMLElement, view: EditorView) {
 		badge.createSpan({ cls: 'grammarly-badge-label', text: category });
 	}
 
-	// Diff block
-	if (begin !== null && end !== null && replacements.length > 0) {
+	// Diff block — only when we have a valid range AND a real replacement string
+	const hasReplacement = replacements.length > 0;
+	if (begin !== null && end !== null && begin < end && hasReplacement) {
 		const docLen   = view.state.doc.length;
 		const ctxStart = Math.max(0, begin - 50);
 		const ctxEnd   = Math.min(docLen, end + 50);
@@ -111,28 +133,35 @@ function buildAndShow(target: HTMLElement, view: EditorView) {
 		dom.createDiv({ cls: 'grammarly-explanation', text: explanation });
 	}
 
-	if (explanation && replacements.length > 0) {
+	if (explanation && hasReplacement) {
 		dom.createDiv({ cls: 'grammarly-explanation', text: explanation });
 	}
 
 	// Action buttons
 	const actions = dom.createDiv({ cls: 'grammarly-actions' });
 
-	if (begin !== null && end !== null && replacements.length > 0) {
+	if (begin !== null && end !== null && begin < end && hasReplacement) {
 		const applyBtn = actions.createEl('button', {
 			cls: 'grammarly-btn-accept',
 			text: replacements.length === 1 ? `Apply: "${replacements[0]}"` : 'Apply suggestion'
 		});
 		applyBtn.style.setProperty('--g-accent', color);
 		applyBtn.onclick = () => {
-			view.dispatch({ changes: { from: begin, to: end, insert: replacements[0] } });
+			// Re-read from the DecorationSet at click time — positions may have
+			// shifted if the user typed something after the tooltip opened.
+			const clickPos = getLivePos();
+			if (!clickPos) { scheduleHide(true); return; }
+			view.dispatch({ changes: { from: clickPos[0], to: clickPos[1], insert: replacements[0] } });
 			scheduleHide(true);
 		};
 
 		for (let i = 1; i < Math.min(replacements.length, 3); i++) {
 			const altBtn = actions.createEl('button', { cls: 'grammarly-btn-alt', text: `"${replacements[i]}"` });
+			const rep = replacements[i];
 			altBtn.onclick = () => {
-				view.dispatch({ changes: { from: begin, to: end, insert: replacements[i] } });
+				const clickPos = getLivePos();
+				if (!clickPos) { scheduleHide(true); return; }
+				view.dispatch({ changes: { from: clickPos[0], to: clickPos[1], insert: rep } });
 				scheduleHide(true);
 			};
 		}

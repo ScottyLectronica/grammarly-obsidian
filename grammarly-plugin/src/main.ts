@@ -56,13 +56,28 @@ export default class GrammarlyPlugin extends Plugin {
 		});
 
 		// CM6 update listener — forwards precise ChangeSet deltas to the active client
+		// and keeps session.alerts positions in sync so syncAlertsToEditor() never
+		// rebuilds decorations at stale (pre-edit) offsets.
 		const changeListener = EditorView.updateListener.of((update) => {
-			if (update.docChanged && this.activeClient) {
+			if (!update.docChanged) return;
+
+			if (this.activeClient) {
 				this.activeClient.onDocChanged(
 					update.changes as any,
 					update.startState.doc.length,
 					update.state.doc.toString()
 				);
+			}
+
+			// Map every cached alert position through the document change so
+			// the positions stay accurate even if syncAlertsToEditor() is called
+			// before Grammarly sends updated alerts.
+			const session = this.sessions.get(this.activeFilePath);
+			if (session && session.alerts.length > 0) {
+				for (const alert of session.alerts) {
+					alert.begin = update.changes.mapPos(alert.begin, -1);
+					alert.end   = update.changes.mapPos(alert.end,    1);
+				}
 			}
 		});
 
@@ -213,7 +228,12 @@ export default class GrammarlyPlugin extends Plugin {
 			if (!session) return;
 			const alert = raw as GrammarlyAlert;
 			if (this.isDismissed(filePath, alert)) return;
-			session.alerts.push(alert);
+			// Upsert: Grammarly reuses alert IDs when it updates a suggestion.
+			// Pushing without deduplication creates duplicate decorations that
+			// cause posAtDOM to find the wrong span and corrupt text on apply.
+			const idx = session.alerts.findIndex(a => a.id === alert.id);
+			if (idx >= 0) session.alerts[idx] = alert;
+			else session.alerts.push(alert);
 			if (filePath === this.activeFilePath) this.syncAlertsToEditor();
 		});
 
@@ -354,6 +374,24 @@ class GrammarlySettingTab extends PluginSettingTab {
 				.setButtonText(loggedIn ? 'Switch account' : 'Login')
 				.setCta()
 				.onClick(() => new GrammarlyAuthModal(this.app, this.plugin).open())
+			)
+			.addButton(btn => btn
+				.setButtonText('Sign out')
+				.setWarning()
+				.setDisabled(!loggedIn)
+				.onClick(async () => {
+					this.plugin.settings.grauth    = '';
+					this.plugin.settings.csrfToken = '';
+					await this.plugin.saveSettings();
+					// Disconnect all sessions
+					for (const session of (this.plugin as any).sessions.values()) {
+						session.client.disconnect();
+					}
+					(this.plugin as any).sessions.clear();
+					(this.plugin as any).activeClient = null;
+					new Notice('Signed out of Grammarly.');
+					this.display(); // refresh settings panel
+				})
 			);
 
 		new Setting(containerEl)

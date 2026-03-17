@@ -75,7 +75,15 @@ export class GrammarlyClient extends Events {
 	private pendingPlainText = '';
 
 	/**
-	 * Bidirectional position mapping for the current document.
+	 * Position mapping for the text currently on Grammarly's server.
+	 * This is the mapping to use when converting alert positions — NOT
+	 * the mapping for the latest local edit, which may be newer.
+	 */
+	private serverTextMapping:   TextMapping | null = null;
+	private inflightTextMapping: TextMapping | null = null;
+
+	/**
+	 * The latest position mapping for the current local document state.
 	 * grammarlyToOrig[grammarlyPos] = cm6Pos
 	 */
 	private textMapping: TextMapping | null = null;
@@ -105,14 +113,16 @@ export class GrammarlyClient extends Events {
 				).join('');
 
 				// Full state reset — the server starts a brand-new document
-				this.serverRev        = 0;
-				this.serverDocLen     = 0;
-				this.serverPlainText  = '';
-				this.inflightPlainText = '';
-				this.serverReady      = false;
-				this.contextSent      = false;
-				this.waitingForAck    = false;
-				this.messageId        = 0;
+				this.serverRev          = 0;
+				this.serverDocLen       = 0;
+				this.serverPlainText    = '';
+				this.inflightPlainText  = '';
+				this.serverTextMapping  = null;
+				this.inflightTextMapping = null;
+				this.serverReady        = false;
+				this.contextSent        = false;
+				this.waitingForAck      = false;
+				this.messageId          = 0;
 				// textMapping and pendingPlainText intentionally kept —
 				// they describe the document, not the connection.
 
@@ -246,7 +256,11 @@ export class GrammarlyClient extends Events {
 			return; // nothing changed
 		}
 
-		if (isBootstrap) this.trigger('clear');
+		if (isBootstrap) {
+			this.trigger('clear');
+			console.log('[Grammarly] Sending bootstrap plain text (' + newPlain.length + ' chars):\n' +
+				newPlain.slice(0, 300) + (newPlain.length > 300 ? '…' : ''));
+		}
 
 		this.ws.send(JSON.stringify({
 			id:      this.messageId++,
@@ -257,8 +271,9 @@ export class GrammarlyClient extends Events {
 			chunked: false
 		}));
 
-		this.inflightPlainText = newPlain;
-		this.waitingForAck     = true;
+		this.inflightPlainText   = newPlain;
+		this.inflightTextMapping = this.textMapping;
+		this.waitingForAck       = true;
 	}
 
 	private handleMessage(msg: any): void {
@@ -271,10 +286,11 @@ export class GrammarlyClient extends Events {
 				break;
 
 			case 'submit_ot':
-				this.serverRev       = msg.rev;
-				this.serverDocLen    = this.inflightPlainText.length;
-				this.serverPlainText = this.inflightPlainText;
-				this.waitingForAck   = false;
+				this.serverRev          = msg.rev;
+				this.serverDocLen       = this.inflightPlainText.length;
+				this.serverPlainText    = this.inflightPlainText;
+				this.serverTextMapping  = this.inflightTextMapping;
+				this.waitingForAck      = false;
 
 				if (!this.contextSent) {
 					this.contextSent = true;
@@ -298,14 +314,43 @@ export class GrammarlyClient extends Events {
 
 			case 'alert': {
 				const alert   = msg as GrammarlyAlert;
-				const gToO    = this.textMapping?.grammarlyToOrig;
+				const gToO    = this.serverTextMapping?.grammarlyToOrig;
+				const rawBegin = alert.begin;
+				const rawEnd   = alert.end;
 				if (gToO && gToO.length > 0) {
 					// Convert Grammarly's plain-text positions to CM6 document positions.
-					// Clamp out-of-range indices to the last mapped character.
-					const clamp = (i: number) =>
-						gToO[i] ?? gToO[gToO.length - 1] ?? i;
-					alert.begin = clamp(alert.begin);
-					alert.end   = clamp(alert.end);
+					// Use serverTextMapping (the mapping for the text on Grammarly's server)
+					// rather than the current local mapping which may be newer.
+					const mapPos = (i: number): number => {
+						if (i < gToO.length) return gToO[i];
+						return gToO[gToO.length - 1] + (i - (gToO.length - 1));
+					};
+					alert.begin = mapPos(rawBegin);
+					alert.end   = mapPos(rawEnd);
+				}
+				// Debug: verify the mapped text matches alert.text
+				const plain = this.serverTextMapping?.plainText ?? this.serverPlainText;
+				const rawText = plain.slice(rawBegin, rawEnd);
+				const hBegin: number | undefined = (msg as any).highlightBegin;
+				const hEnd:   number | undefined = (msg as any).highlightEnd;
+				const hText = (hBegin !== undefined && hEnd !== undefined)
+					? plain.slice(hBegin, hEnd) : undefined;
+				if (alert.text !== undefined && rawText !== alert.text) {
+					console.warn(
+						`[Grammarly] Position mismatch! alert.text="${alert.text}" ` +
+						`but plain[${rawBegin}..${rawEnd}]="${rawText}" | ` +
+						`highlightText="${hText}" at [${hBegin}..${hEnd}] | ` +
+						`mappingLen=${gToO?.length ?? 'none'}, plainLen=${plain.length}`
+					);
+				} else {
+					const rep0 = (msg as any).replacements?.[0];
+					console.log(
+						`[Grammarly] alert #${alert.id} "${rawText}" ` +
+						`raw=[${rawBegin},${rawEnd}] → cm6=[${alert.begin},${alert.end}] | ` +
+						`highlight=[${hBegin},${hEnd}]="${hText}" | ` +
+						`replacement(${typeof rep0})="${rep0}" | ` +
+						`cat=${alert.category}`
+					);
 				}
 				this.trigger('alert', alert);
 				break;

@@ -2,6 +2,8 @@
 
 Real-time Grammarly suggestions inside the Obsidian editor. Works with free and Premium Grammarly accounts — you get exactly the suggestions your subscription includes.
 
+> **Community project.** This plugin is functional but unfinished. The biggest outstanding problem is that premium suggestions do not yet work reliably for all paid subscribers. The core plugin works — login, underlines, tooltips, apply/dismiss — but the premium authentication path needs community expertise to crack. See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help.
+
 - Color-coded wavy underlines (spelling, grammar, clarity, style)
 - Hover over any underline to see the suggestion and apply it with one click
 - Suggestions update as you type

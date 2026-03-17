@@ -1,7 +1,7 @@
 {
   "id": "grammarly-plugin",
   "name": "Grammarly",
-  "version": "1.0.3",
+  "version": "1.0.10",
   "minAppVersion": "0.15.0",
   "description": "Unofficial Grammarly client natively supporting Live Preview.",
   "author": "Christopher E. Scott",
