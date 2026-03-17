@@ -258,8 +258,6 @@ export class GrammarlyClient extends Events {
 
 		if (isBootstrap) {
 			this.trigger('clear');
-			console.log('[Grammarly] Sending bootstrap plain text (' + newPlain.length + ' chars):\n' +
-				newPlain.slice(0, 300) + (newPlain.length > 300 ? '…' : ''));
 		}
 
 		this.ws.send(JSON.stringify({
@@ -328,28 +326,17 @@ export class GrammarlyClient extends Events {
 					alert.begin = mapPos(rawBegin);
 					alert.end   = mapPos(rawEnd);
 				}
-				// Debug: verify the mapped text matches alert.text
+				// Warn on position mismatch to help contributors debug the underline-drift bug.
+				// Logs position numbers only — no note content.
 				const plain = this.serverTextMapping?.plainText ?? this.serverPlainText;
 				const rawText = plain.slice(rawBegin, rawEnd);
 				const hBegin: number | undefined = (msg as any).highlightBegin;
 				const hEnd:   number | undefined = (msg as any).highlightEnd;
-				const hText = (hBegin !== undefined && hEnd !== undefined)
-					? plain.slice(hBegin, hEnd) : undefined;
 				if (alert.text !== undefined && rawText !== alert.text) {
 					console.warn(
-						`[Grammarly] Position mismatch! alert.text="${alert.text}" ` +
-						`but plain[${rawBegin}..${rawEnd}]="${rawText}" | ` +
-						`highlightText="${hText}" at [${hBegin}..${hEnd}] | ` +
+						`[Grammarly] Position mismatch at raw=[${rawBegin}..${rawEnd}] | ` +
+						`highlight=[${hBegin}..${hEnd}] | ` +
 						`mappingLen=${gToO?.length ?? 'none'}, plainLen=${plain.length}`
-					);
-				} else {
-					const rep0 = (msg as any).replacements?.[0];
-					console.log(
-						`[Grammarly] alert #${alert.id} "${rawText}" ` +
-						`raw=[${rawBegin},${rawEnd}] → cm6=[${alert.begin},${alert.end}] | ` +
-						`highlight=[${hBegin},${hEnd}]="${hText}" | ` +
-						`replacement(${typeof rep0})="${rep0}" | ` +
-						`cat=${alert.category}`
 					);
 				}
 				this.trigger('alert', alert);
