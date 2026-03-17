@@ -94,4 +94,4 @@ To restore dismissed suggestions: **Ctrl+P** > **Clear dismissed Grammarly sugge
 
 ## Author
 
-Christopher E. Scott | [GitHub](https://github.com/ScottyLectronica)
+Christopher E. Scott | [GitHub](https://github.com/ScottyLectronica)  [Website](https://MisterScott.com)
