@@ -1,12 +1,12 @@
 # Contributing to Grammarly for Obsidian
 
-This project is open to the community. The core plugin works — it connects to Grammarly's WebSocket API, displays suggestions as wavy underlines, and lets you apply or dismiss them. The outstanding challenge that nobody has cracked yet is getting the plugin to consistently deliver premium suggestions to paid Grammarly subscribers.
+This project is open to the community. The core plugin works | it connects to Grammarly's WebSocket API, displays suggestions as wavy underlines, and lets you apply or dismiss them. The outstanding challenge that nobody has cracked yet is getting the plugin to consistently deliver premium suggestions to paid Grammarly subscribers.
 
 If you can help solve that, or improve anything else, contributions are very welcome.
 
 ## What the project needs most
 
-**Premium authentication** — The plugin captures the `grauth` and `csrf-token` session cookies after the user logs in and sends them with each WebSocket connection to `wss://capi.grammarly.com/freews`. Premium subscribers log in successfully but may still receive only free-tier suggestions. If you know how Grammarly's official browser extension establishes a premium session (different endpoint, different handshake, additional headers), that knowledge would be transformative.
+**Premium authentication** | The plugin captures the `grauth` and `csrf-token` session cookies after the user logs in and sends them with each WebSocket connection to `wss://capi.grammarly.com/freews`. Premium subscribers log in successfully but may still receive only free-tier suggestions. If you know how Grammarly's official browser extension establishes a premium session (different endpoint, different handshake, additional headers), that knowledge would be transformative.
 
 Other areas where contributions would help:
 - Automatic session refresh when the `grauth` token expires
@@ -27,7 +27,7 @@ Other areas where contributions would help:
 ```bash
 cd grammarly-plugin
 npm install
-npm run dev     # watch mode — rebuilds on save
+npm run dev     # watch mode | rebuilds on save
 npm run build   # production build
 ```
 
@@ -35,7 +35,7 @@ Copy `main.js`, `styles.css`, and `manifest.json` into `.obsidian/plugins/gramma
 
 ## Code style
 
-The project uses TypeScript with strict mode. No linter is configured yet — contributions that add one are welcome. Match the style of the surrounding code.
+The project uses TypeScript with strict mode. No linter is configured yet | contributions that add one are welcome. Match the style of the surrounding code.
 
 ## Reporting bugs
 
