@@ -1,8 +1,8 @@
 # Grammarly for Obsidian
 
-This is an Obsidian plugin that provides real-time Grammarly suggestions inside the Obsidian editor.  It was really hard to make, many people before me have tried and failed.  I got it to ALMOST work, but I got stuck at the very last part.  I was going to throw it out, but then I remembered I could just make it open-source, and invite other people to take a look at it and fix it.  It is ALMOST there.  Someone with a bigger brain than me is going to take it that extra few feet past the finish line.  This plug-in works with free and Premium Grammarly accounts and you don't have to enter an API key or anything annoying like that.  You just sign in and you get exactly the suggestions your subscription includes.
+This is an Obsidian plugin that provides real-time Grammarly suggestions inside the Obsidian editor. It was really hard to make, many people before me have tried and failed. I got it to ALMOST work, but I got stuck at the very last part. I was going to throw it out, but then I remembered I could just make it open-source, and invite other people to take a look at it and fix it. It is ALMOST there. Someone with a bigger brain than me is going to take it that extra few feet past the finish line. This plug-in works with free and Premium Grammarly accounts and you don't have to enter an API key or anything annoying like that. You just sign in and you get exactly the suggestions your subscription includes.
 
-> **Community project.** This plugin is functional but unfinished. The biggest outstanding problem is that premium suggestions do not yet work reliably for all paid subscribers. The core plugin works | login, underlines, tooltips, apply/dismiss | but the premium authentication path needs community expertise to crack. See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help.
+> **Community project.** This plugin has two unsolved bugs: applying a suggestion sometimes corrupts the surrounding text, and underlines occasionally land on the wrong word in complex documents. The connection, login, and suggestion display all work. See [CONTRIBUTING.md](CONTRIBUTING.md) for a full description of both bugs if you want to help fix them.
 
 - Color-coded wavy underlines (spelling, grammar, clarity, style)
 - Hover over any underline to see the suggestion and apply it with one click
@@ -77,11 +77,11 @@ The status bar at the bottom of Obsidian shows the connection state:
 
 ## Usage
 
-Open any note. Grammarly analyses it automatically. Hover over any wavy underline to see the suggestion. Click **Apply** to accept it or **✕** to dismiss it permanently for that note.
+Open any note. Grammarly analyses it automatically. Hover over any wavy underline to see the suggestion. Click **Apply** to accept it or **Dismiss** to hide it permanently for that note.
 
-To re-analyse a note from scratch: **Ctrl+P** → **Re-analyse with Grammarly**
+To re-analyse a note from scratch: **Ctrl+P** > **Re-analyse with Grammarly**
 
-To restore dismissed suggestions: **Ctrl+P** → **Clear dismissed Grammarly suggestions for this note**
+To restore dismissed suggestions: **Ctrl+P** > **Clear dismissed Grammarly suggestions for this note**
 
 ---
 
