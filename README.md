@@ -1,6 +1,6 @@
 # Grammarly for Obsidian
 
-Real-time Grammarly suggestions inside the Obsidian editor. Works with free and Premium Grammarly accounts; you get exactly the suggestions your subscription includes.
+This is an Obsidian plugin that provides real-time Grammarly suggestions inside the Obsidian editor.  It was really hard to make, many people before me have tried and failed.  I got it to ALMOST work, but I got stuck at the very last part.  I was going to throw it out, but then I remembered I could just make it open-source, and invite other people to take a look at it and fix it.  It is ALMOST there.  Someone with a bigger brain than me is going to take it that extra few feet past the finish line.  This plug-in works with free and Premium Grammarly accounts and you don't have to enter an API key or anything annoying like that.  You just sign in and you get exactly the suggestions your subscription includes.
 
 > **Community project.** This plugin is functional but unfinished. The biggest outstanding problem is that premium suggestions do not yet work reliably for all paid subscribers. The core plugin works | login, underlines, tooltips, apply/dismiss | but the premium authentication path needs community expertise to crack. See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help.
 
