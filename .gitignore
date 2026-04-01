@@ -10,14 +10,6 @@ grammarly-plugin/*.js.map
 # Development/test scripts
 grammarly-plugin/test-grammarly.js
 
-# AI tool configuration
-CLAUDE.md
-.claude/
-.aider*
-.cursor/
-.copilot/
-.github/copilot-instructions.md
-
 # Environment files with secrets
 .env
 .env.*
@@ -36,9 +28,6 @@ grammarly-vscode/
 obsidian-orthography/
 Obsidian-plugin-instructions/
 Grammarly-API-docs/
-Antigravity-Docs/
-vibe-coded/
-vibe-coding-best-practices/
 Submit- Windows Store/
 Submitting - App Store - Apple Developer/
 
